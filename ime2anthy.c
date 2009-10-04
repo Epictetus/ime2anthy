@@ -22,7 +22,7 @@ static void load_dictionary(char *file)
 	char cmd[512] = { 0 };
 
 	snprintf(cmd, sizeof(cmd) - 1,
-		 "cat %s | anthy-dic-tool --load", file);
+		 "cat %s | anthy-dic-tool --load | nkf -E", file);
 
 	do_command(cmd);
 
