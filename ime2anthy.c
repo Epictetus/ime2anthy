@@ -40,6 +40,8 @@ static void convert_imedic2anthydic(char *in, char *out)
 	wfp = g_fopen(out, "a+");
 	assert(wfp != NULL);
 
+	g_fprintf(wfp, "\n");
+
 	while (fgets(str, sizeof(str), rfp) != NULL) {
 		if (str[0] != '!' && str[0] != ' ') {
 			gchar word[1024] = { 0 };
@@ -112,7 +114,7 @@ int main(int argc, char **argv)
 
 	convert_imedic2anthydic(NKF_OUTPUT_FILE_NAME, anthy_dic_tmp);
 
-	do_nkf(anthy_dic_tmp, "W8", anthy_dic, "E");
+	do_nkf(anthy_dic_tmp, "W8", anthy_dic, "e");
 
 	load_dictionary(anthy_dic);
 
