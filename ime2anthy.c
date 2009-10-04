@@ -6,58 +6,118 @@
 #include <string.h>
 #include <assert.h>
 
-static void usage(char *prog);
-static void read_file(char *name);
+#define NKF_OUTPUT_FILE_NAME "ime_std_utf.txt"
+#define ANTHY_DIC_FILE_NAME "/.anthy/2ch_kaomoji.txt"
+#define ANTHY_DIC_TMP_FILE_NAME "/.anthy/2ch_kaomoji.txt.tmp"
 
-static inline void test(const gchar *p)
+static void usage(char *prog);
+static void do_command(char *com);
+static void create_anthy_dic_template(char *file, char *tmp);
+static void do_nkf(char *in, char *in_code, char *out, char *out_code);
+static void convert_imedic2anthydic(char *in, char *out);
+static void load_dictionary(char *file);
+
+static void load_dictionary(char *file)
 {
-	GString *str = g_string_new(p);
-	g_printf("%s\n", str->str);
-	g_string_free(str, TRUE);
+	char cmd[512] = { 0 };
+
+	snprintf(cmd, sizeof(cmd) - 1,
+		 "cat %s | anthy-dic-tool --load", file);
+
+	do_command(cmd);
+
 }
 
-static void read_file(char *name)
+static void convert_imedic2anthydic(char *in, char *out)
 {
-	FILE *fp;
-	gchar str[1024];
+	FILE *rfp;
+	FILE *wfp;
+	gchar str[1024] = { 0 };
 
-	fp = g_fopen(name, "r");
-	assert(fp != NULL);
+	rfp = g_fopen(in, "r");
+	assert(rfp != NULL);
 
-	memset(str, 0, sizeof(str));
+	wfp = g_fopen(out, "a+");
+	assert(wfp != NULL);
 
-	while (fgets(str, sizeof(str), fp) != NULL) {
+	while (fgets(str, sizeof(str), rfp) != NULL) {
 		if (str[0] != '!' && str[0] != ' ') {
+			gchar word[1024] = { 0 };
 			gchar **array = g_strsplit(str, "\t", 3);
-			test(array[0]);
-			test(array[1]);
-			test(array[2]);
-			g_strfreev(array); 
+
+			if (array[2]) {
+				g_snprintf(word, sizeof(word) - 1, "%s 1 %s\n%s\n%s\n%s\n%s\n%s\n%s\n\n",
+					   array[0],
+					   array[1],
+					   "品詞 = 名詞",
+					   "な接続 = y",
+					   "さ接続 = y",
+					   "する接続 = y",
+					   "語幹のみで文節 = y",
+					   "格助詞接続 = y");
 				
-#if 0
-			GString *p = g_string_new(str);
-			g_printf("%s", p->str);
-			g_string_free(p, TRUE);
-#endif
+				g_strfreev(array); 
+				g_fprintf(wfp, "%s", word);
+			}
 		}
 		memset(str, 0, sizeof(str));
 	}
 
-	fclose(fp);
+	fclose(rfp);
+	fclose(wfp);
+}
+
+static void do_command(char *com)
+{
+	assert(system(com) != -1);
+}
+
+static void create_anthy_dic_template(char *file, char *tmp)
+{
+	char com[512] = { 0 };
+
+	snprintf(com, sizeof(com) - 1, "anthy-dic-tool --dump > %s", file);
+	do_command(com);
+
+	do_nkf(file, "E", tmp, "w8");
+}
+
+static void do_nkf(char *in, char *in_code, char *out, char *out_code)
+{
+	char com[512] = { 0 };
+
+	snprintf(com, sizeof(com) - 1, "nkf -%s -%s %s > %s", out_code, in_code, in, out);
+	do_command(com);
 }
 
 static void usage(char *prog)
 {
-	fprintf(stderr, "usage %s <ime dictionary>\n\tNote: IME dictionary's charactor code should be UTF-8\n", prog);
+	fprintf(stderr, "usage %s <ime dictionary>\n", prog);
 	exit(-1);
 }
 
 int main(int argc, char **argv)
 {
+	char anthy_dic[512] = { 0 };
+	char anthy_dic_tmp[512] = { 0 };
+
 	if (argc != 2)
 		usage(argv[0]);
 
-	read_file(argv[1]);
+	snprintf(anthy_dic, sizeof(anthy_dic) - 1, "%s/%s", getenv("HOME"), ANTHY_DIC_FILE_NAME);
+	snprintf(anthy_dic_tmp, sizeof(anthy_dic_tmp) - 1, "%s/%s", getenv("HOME"), ANTHY_DIC_TMP_FILE_NAME);
+
+	create_anthy_dic_template(anthy_dic, anthy_dic_tmp);
+	do_nkf(argv[1], "S", NKF_OUTPUT_FILE_NAME, "w8");
+
+	convert_imedic2anthydic(NKF_OUTPUT_FILE_NAME, anthy_dic_tmp);
+
+	do_nkf(anthy_dic_tmp, "W8", anthy_dic, "E");
+
+	load_dictionary(anthy_dic);
+
+	g_remove(NKF_OUTPUT_FILE_NAME);
+	g_remove(anthy_dic_tmp);
 
 	return 0;
 }
