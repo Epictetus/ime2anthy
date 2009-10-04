@@ -7,13 +7,25 @@
 #include <assert.h>
 
 #define NKF_OUTPUT_FILE_NAME "ime_std_utf.txt"
-#define ANTHY_DIC_FILE_NAME "./2ch_kaomoji.t"
-#define ANTHY_DIC_TMP_FILE_NAME "./2ch_kaomoji.txt.tmp"
+#define ANTHY_DIC_FILE_NAME "/.anthy/2ch_kaomoji.txt"
 
 static void usage(char *prog);
 static void do_command(char *com);
+static void create_anthy_dic_template(char *file);
 static void do_nkf(char *in, char *in_code, char *out, char *out_code);
 static void convert_imedic2anthydic(char *in, char *out);
+static void load_dictionary(char *file);
+
+static void load_dictionary(char *file)
+{
+	char cmd[512] = { 0 };
+
+	snprintf(cmd, sizeof(cmd) - 1,
+		 "cat %s | anthy-dic-tool --load --utf8", file);
+
+	do_command(cmd);
+
+}
 
 static void convert_imedic2anthydic(char *in, char *out)
 {
@@ -26,6 +38,8 @@ static void convert_imedic2anthydic(char *in, char *out)
 
 	wfp = g_fopen(out, "a+");
 	assert(wfp != NULL);
+
+	g_fprintf(wfp, "\n");
 
 	while (fgets(str, sizeof(str), rfp) != NULL) {
 		if (str[0] != '!' && str[0] != ' ') {
@@ -69,17 +83,21 @@ static void usage(char *prog)
 
 int main(int argc, char **argv)
 {
+	char anthy_dic[512] = { 0 };
+
 	if (argc != 2)
 		usage(argv[0]);
 
+	snprintf(anthy_dic, sizeof(anthy_dic) - 1, "%s/%s", getenv("HOME"), ANTHY_DIC_FILE_NAME);
+
+	create_anthy_dic_template(anthy_dic);
 	do_nkf(argv[1], "S", NKF_OUTPUT_FILE_NAME, "w8");
 
-	convert_imedic2anthydic(NKF_OUTPUT_FILE_NAME, ANTHY_DIC_TMP_FILE_NAME);
+	convert_imedic2anthydic(NKF_OUTPUT_FILE_NAME, anthy_dic);
 
 	do_nkf(ANTHY_DIC_TMP_FILE_NAME, "W8", ANTHY_DIC_FILE_NAME, "E");
 
 	g_remove(NKF_OUTPUT_FILE_NAME);
-	g_remove(ANTHY_DIC_TMP_FILE_NAME);
 
 	return 0;
 }
