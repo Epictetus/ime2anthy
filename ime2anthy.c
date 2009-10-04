@@ -47,9 +47,15 @@ static void convert_imedic2anthydic(char *in, char *out)
 			gchar **array = g_strsplit(str, "\t", 3);
 
 			if (array[2]) {
-				g_snprintf(word, sizeof(word) - 1, "%s #T35 %s\n",
+				g_snprintf(word, sizeof(word) - 1, "%s 1 %s\n%s\n%s\n%s\n%s\n%s\n%s\n\n",
 					   array[0],
-					   array[1]);
+					   array[1],
+					   "品詞 = 名詞",
+					   "な接続 = y",
+					   "さ接続 = y",
+					   "する接続 = y",
+					   "語幹のみで文節 = y",
+					   "格助詞接続 = y");
 				
 				g_strfreev(array); 
 				g_fprintf(wfp, "%s", word);
@@ -65,6 +71,14 @@ static void convert_imedic2anthydic(char *in, char *out)
 static void do_command(char *com)
 {
 	assert(system(com) != -1);
+}
+
+static void create_anthy_dic_template(char *file)
+{
+	char com[512] = { 0 };
+
+	snprintf(com, sizeof(com) - 1, "anthy-dic-tool --dump --utf8 > %s", file);
+	do_command(com);
 }
 
 static void do_nkf(char *in, char *in_code, char *out, char *out_code)
@@ -95,7 +109,7 @@ int main(int argc, char **argv)
 
 	convert_imedic2anthydic(NKF_OUTPUT_FILE_NAME, anthy_dic);
 
-	do_nkf(ANTHY_DIC_TMP_FILE_NAME, "W8", ANTHY_DIC_FILE_NAME, "E");
+	load_dictionary(anthy_dic);
 
 	g_remove(NKF_OUTPUT_FILE_NAME);
 
