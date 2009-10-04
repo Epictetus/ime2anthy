@@ -7,26 +7,13 @@
 #include <assert.h>
 
 #define NKF_OUTPUT_FILE_NAME "ime_std_utf.txt"
-#define ANTHY_DIC_FILE_NAME "/.anthy/2ch_kaomoji.txt"
-#define ANTHY_DIC_TMP_FILE_NAME "/.anthy/2ch_kaomoji.txt.tmp"
+#define ANTHY_DIC_FILE_NAME "./2ch_kaomoji.t"
+#define ANTHY_DIC_TMP_FILE_NAME "./2ch_kaomoji.txt.tmp"
 
 static void usage(char *prog);
 static void do_command(char *com);
-static void create_anthy_dic_template(char *file, char *tmp);
 static void do_nkf(char *in, char *in_code, char *out, char *out_code);
 static void convert_imedic2anthydic(char *in, char *out);
-static void load_dictionary(char *file);
-
-static void load_dictionary(char *file)
-{
-	char cmd[512] = { 0 };
-
-	snprintf(cmd, sizeof(cmd) - 1,
-		 "cat %s | anthy-dic-tool --load", file);
-
-	do_command(cmd);
-
-}
 
 static void convert_imedic2anthydic(char *in, char *out)
 {
@@ -46,15 +33,9 @@ static void convert_imedic2anthydic(char *in, char *out)
 			gchar **array = g_strsplit(str, "\t", 3);
 
 			if (array[2]) {
-				g_snprintf(word, sizeof(word) - 1, "%s 1 %s\n%s\n%s\n%s\n%s\n%s\n%s\n\n",
+				g_snprintf(word, sizeof(word) - 1, "%s #T35 %s\n",
 					   array[0],
-					   array[1],
-					   "品詞 = 名詞",
-					   "な接続 = y",
-					   "さ接続 = y",
-					   "する接続 = y",
-					   "語幹のみで文節 = y",
-					   "格助詞接続 = y");
+					   array[1]);
 				
 				g_strfreev(array); 
 				g_fprintf(wfp, "%s", word);
@@ -70,16 +51,6 @@ static void convert_imedic2anthydic(char *in, char *out)
 static void do_command(char *com)
 {
 	assert(system(com) != -1);
-}
-
-static void create_anthy_dic_template(char *file, char *tmp)
-{
-	char com[512] = { 0 };
-
-	snprintf(com, sizeof(com) - 1, "anthy-dic-tool --dump > %s", file);
-	do_command(com);
-
-	do_nkf(file, "E", tmp, "w8");
 }
 
 static void do_nkf(char *in, char *in_code, char *out, char *out_code)
@@ -98,26 +69,17 @@ static void usage(char *prog)
 
 int main(int argc, char **argv)
 {
-	char anthy_dic[512] = { 0 };
-	char anthy_dic_tmp[512] = { 0 };
-
 	if (argc != 2)
 		usage(argv[0]);
 
-	snprintf(anthy_dic, sizeof(anthy_dic) - 1, "%s/%s", getenv("HOME"), ANTHY_DIC_FILE_NAME);
-	snprintf(anthy_dic_tmp, sizeof(anthy_dic_tmp) - 1, "%s/%s", getenv("HOME"), ANTHY_DIC_TMP_FILE_NAME);
-
-	create_anthy_dic_template(anthy_dic, anthy_dic_tmp);
 	do_nkf(argv[1], "S", NKF_OUTPUT_FILE_NAME, "w8");
 
-	convert_imedic2anthydic(NKF_OUTPUT_FILE_NAME, anthy_dic_tmp);
+	convert_imedic2anthydic(NKF_OUTPUT_FILE_NAME, ANTHY_DIC_TMP_FILE_NAME);
 
-	do_nkf(anthy_dic_tmp, "W8", anthy_dic, "E");
-
-	load_dictionary(anthy_dic);
+	do_nkf(ANTHY_DIC_TMP_FILE_NAME, "W8", ANTHY_DIC_FILE_NAME, "E");
 
 	g_remove(NKF_OUTPUT_FILE_NAME);
-	g_remove(anthy_dic_tmp);
+	g_remove(ANTHY_DIC_TMP_FILE_NAME);
 
 	return 0;
 }
